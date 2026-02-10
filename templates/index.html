@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoRank | Intelligent Car Finder</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #2c3e50; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+        input[type="text"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 20px; font-size: 16px; }
+        button:hover { background-color: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #2c3e50; color: white; }
+        .score { font-weight: bold; color: #27ae60; }
+    </style>
+</head>
+<body>
+
+    <h1>AutoRank</h1>
+    <p style="text-align:center;">Intelligent Car Recommendation Engine</p>
+    
+    <div class="card">
+        <h3>1. Select Manufacturer</h3>
+        <input type="text" id="make" placeholder="e.g., Honda, Toyota, Ford" value="Honda">
+
+        <h3>2. Set Your Priorities (0 - 10)</h3>
+        
+        <label>Price Sensitivity (High = I want cheap)</label>
+        <input type="range" id="w_price" min="0" max="10" value="8" oninput="document.getElementById('price_val').innerText = this.value">
+        <span style="font-size:0.9em; color:#666;">Value: <span id="price_val">8</span></span>
+        
+        <label>Fuel Efficiency (High = I want good MPG)</label>
+        <input type="range" id="w_mpg" min="0" max="10" value="5" oninput="document.getElementById('mpg_val').innerText = this.value">
+        <span style="font-size:0.9em; color:#666;">Value: <span id="mpg_val">5</span></span>
+        
+        <label>Performance (High = I want fast/strong)</label>
+        <input type="range" id="w_hp" min="0" max="10" value="2" oninput="document.getElementById('hp_val').innerText = this.value">
+        <span style="font-size:0.9em; color:#666;">Value: <span id="hp_val">2</span></span>
+
+        <button onclick="rankCars()">Find & Rank Vehicles</button>
+    </div>
+
+    <div id="results" class="card" style="display:none;">
+        <h3>Ranked Results (TOPSIS Algorithm)</h3>
+        <p><i>Ordered by closeness to your ideal preferences.</i></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Model</th>
+                    <th>Price (Est)</th>
+                    <th>MPG</th>
+                    <th>HP</th>
+                    <th>Match Score</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function rankCars() {
+            const make = document.getElementById('make').value;
+            const w_price = parseFloat(document.getElementById('w_price').value);
+            const w_mpg = parseFloat(document.getElementById('w_mpg').value);
+            const w_hp = parseFloat(document.getElementById('w_hp').value);
+
+            const button = document.querySelector('button');
+            button.innerText = "Processing Data...";
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/api/rank', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ make, w_price, w_mpg, w_hp })
+                });
+
+                const data = await response.json();
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    alert("No cars found for this make. Try 'Honda' or 'Toyota'.");
+                    return;
+                }
+
+                data.forEach((car, index) => {
+                    const row = `<tr>
+                        <td>#${index + 1}</td>
+                        <td>${car.make} ${car.model}</td>
+                        <td>$${car.price.toLocaleString()}</td>
+                        <td>${car.mpg}</td>
+                        <td>${car.hp}</td>
+                        <td class="score">${(car.score * 100).toFixed(1)}%</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+
+                document.getElementById('results').style.display = 'block';
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Something went wrong. Make sure the Python server is running.");
+            } finally {
+                button.innerText = "Find & Rank Vehicles";
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
